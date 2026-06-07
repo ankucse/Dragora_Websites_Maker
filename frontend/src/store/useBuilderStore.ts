@@ -17,12 +17,14 @@ interface BuilderState {
   moveComponent: (id: string, targetParentId: string | null, newIndex: number) => void;
   updateProperties: (id: string, props: Record<string, any>) => void;
   selectComponent: (id: string | null) => void;
+  setTree: (newTree: BlockNode[]) => void;
 }
 
 export const useBuilderStore = create<BuilderState>()((set) => ({
   tree: [],
   selectedId: null,
   selectComponent: (id) => set({ selectedId: id }),
+  setTree: (newTree) => set({ tree: newTree }),
   
   addComponent: (node, parentId) => set(produce((state: BuilderState) => {
     if (!parentId) {
