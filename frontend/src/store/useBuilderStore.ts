@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 
-export type BlockType = 'Section' | 'Row' | 'Column' | 'Text' | 'Heading' | 'Image' | 'Button';
+export type BlockType = 'Section' | 'Row' | 'Column' | 'Text' | 'Heading' | 'Button' | 'GraphicCanvas' | 'Image';
 
 export interface BlockNode {
   id: string;
@@ -13,88 +13,84 @@ export interface BlockNode {
 interface BuilderState {
   tree: BlockNode[];
   selectedId: string | null;
-  
-  // Actions
-  addComponent: (parentId: string | null, component: BlockNode, index?: number) => void;
-  moveComponent: (id: string, newParentId: string | null, newIndex: number) => void;
-  deleteComponent: (id: string) => void;
-  updateComponentProperties: (id: string, newProps: Partial<Record<string, any>>) => void;
-  setSelectedId: (id: string | null) => void;
+  addComponent: (node: BlockNode, parentId?: string) => void;
+  moveComponent: (id: string, targetParentId: string | null, newIndex: number) => void;
+  updateProperties: (id: string, props: Record<string, any>) => void;
+  selectComponent: (id: string | null) => void;
 }
-
-const findNode = (nodes: BlockNode[], id: string): BlockNode | null => {
-  for (const node of nodes) {
-    if (node.id === id) return node;
-    const found = findNode(node.children, id);
-    if (found) return found;
-  }
-  return null;
-};
 
 export const useBuilderStore = create<BuilderState>()((set) => ({
   tree: [],
   selectedId: null,
-
-  addComponent: (parentId, component, index) => set(produce((state: BuilderState) => {
-    const targetArray = parentId 
-      ? findNode(state.tree, parentId)?.children 
-      : state.tree;
-
-    if (targetArray) {
-      if (index !== undefined) targetArray.splice(index, 0, component);
-      else targetArray.push(component);
+  selectComponent: (id) => set({ selectedId: id }),
+  
+  addComponent: (node, parentId) => set(produce((state: BuilderState) => {
+    if (!parentId) {
+      state.tree.push(node);
+      return;
     }
+    const findAndPush = (nodes: BlockNode[]): boolean => {
+      for (const n of nodes) {
+        if (n.id === parentId) {
+          n.children.push(node);
+          return true;
+        }
+        if (findAndPush(n.children)) return true;
+      }
+      return false;
+    };
+    findAndPush(state.tree);
   })),
 
-  moveComponent: (id, newParentId, newIndex) => set(produce((state: BuilderState) => {
-    let removedNode: BlockNode | null = null;
+  moveComponent: (id, targetParentId, newIndex) => set(produce((state: BuilderState) => {
+    let nodeToMove: BlockNode | null = null;
     
-    const removeNode = (nodes: BlockNode[]): boolean => {
-      const idx = nodes.findIndex(n => n.id === id);
-      if (idx !== -1) {
-        removedNode = nodes.splice(idx, 1)[0];
+    // Recursive extraction
+    const extractNode = (nodes: BlockNode[], targetId: string): boolean => {
+      const idx = nodes.findIndex(n => n.id === targetId);
+      if (idx > -1) {
+        nodeToMove = nodes.splice(idx, 1)[0];
         return true;
       }
-      for (const node of nodes) {
-        if (removeNode(node.children)) return true;
+      for (const n of nodes) {
+        if (extractNode(n.children, targetId)) return true;
       }
       return false;
     };
     
-    removeNode(state.tree);
-    if (!removedNode) return;
+    extractNode(state.tree, id);
+    if (!nodeToMove) return;
 
-    const targetArray = newParentId 
-      ? findNode(state.tree, newParentId)?.children 
-      : state.tree;
-
-    if (targetArray) {
-      targetArray.splice(newIndex, 0, removedNode);
+    // Insertion
+    if (!targetParentId) {
+      state.tree.splice(newIndex, 0, nodeToMove);
+      return;
     }
-  })),
 
-  deleteComponent: (id) => set(produce((state: BuilderState) => {
-    const removeNode = (nodes: BlockNode[]): boolean => {
-      const idx = nodes.findIndex(n => n.id === id);
-      if (idx !== -1) {
-        nodes.splice(idx, 1);
-        return true;
-      }
-      for (const node of nodes) {
-        if (removeNode(node.children)) return true;
+    const insertNode = (nodes: BlockNode[]): boolean => {
+      for (const n of nodes) {
+        if (n.id === targetParentId) {
+          n.children.splice(newIndex, 0, nodeToMove!);
+          return true;
+        }
+        if (insertNode(n.children)) return true;
       }
       return false;
     };
-    removeNode(state.tree);
-    if (state.selectedId === id) state.selectedId = null;
+    insertNode(state.tree);
   })),
 
-  updateComponentProperties: (id, props) => set(produce((state: BuilderState) => {
-    const node = findNode(state.tree, id);
-    if (node) {
-      node.props = { ...node.props, ...props };
-    }
-  })),
-
-  setSelectedId: (id) => set({ selectedId: id })
+  updateProperties: (id, props) => set(produce((state: BuilderState) => {
+    const findAndUpdate = (nodes: BlockNode[]): boolean => {
+      for (const n of nodes) {
+        if (n.id === id) {
+          n.props = { ...n.props, ...props };
+          return true;
+        }
+        if (findAndUpdate(n.children)) return true;
+      }
+      return false;
+    };
+    findAndUpdate(state.tree);
+  }))
 }));
