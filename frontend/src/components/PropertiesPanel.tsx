@@ -1,92 +1,55 @@
-import React from 'react';
-import { useBuilderStore } from '../store/useBuilderStore';
-import { Settings2, Trash2 } from 'lucide-react';
 
-export const PropertiesPanel: React.FC = () => {
+import { useBuilderStore } from '../store/useBuilderStore';
+import { Settings } from 'lucide-react';
+
+export const PropertiesPanel = () => {
   const selectedId = useBuilderStore((state) => state.selectedId);
   const tree = useBuilderStore((state) => state.tree);
-  const updateComponentProperties = useBuilderStore((state) => state.updateComponentProperties);
-  const deleteComponent = useBuilderStore((state) => state.deleteComponent);
+  const updateProperties = useBuilderStore((state) => state.updateProperties);
 
   const findNode = (nodes: any[], id: string): any => {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      const found = findNode(node.children, id);
-      if (found) return found;
+    for (const n of nodes) {
+      if (n.id === id) return n;
+      const child = findNode(n.children, id);
+      if (child) return child;
     }
     return null;
   };
 
   const selectedNode = selectedId ? findNode(tree, selectedId) : null;
 
-  if (!selectedNode) {
-    return (
-      <div className="w-80 bg-white border-l border-slate-200 p-6 flex flex-col h-full z-10">
-        <div className="flex flex-col items-center justify-center h-full text-slate-400 gap-3">
-          <Settings2 size={48} strokeWidth={1} />
-          <p className="text-sm font-medium">Select an element to edit</p>
-        </div>
-      </div>
-    );
-  }
-
-  const handleChange = (key: string, value: string) => {
-    updateComponentProperties(selectedNode.id, { [key]: value });
-  };
-
   return (
-    <div className="w-80 bg-white border-l border-slate-200 flex flex-col h-full z-10 shadow-[-4px_0_15px_rgba(0,0,0,0.02)]">
-      <div className="h-16 border-b border-slate-100 flex items-center justify-between px-6 shrink-0">
-        <h2 className="font-bold text-slate-800 flex items-center gap-2">
-          <Settings2 size={18} className="text-primary-500" />
-          {selectedNode.type} Props
-        </h2>
-        <button 
-          onClick={() => deleteComponent(selectedNode.id)}
-          className="text-slate-400 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-lg"
-          title="Delete component"
-        >
-          <Trash2 size={18} />
-        </button>
+    <div className="w-80 h-full bg-[#0B1120]/80 backdrop-blur-xl border-l border-white/10 p-6 flex flex-col gap-6 shadow-2xl relative z-20 overflow-y-auto styled-scrollbar">
+      <div className="flex items-center gap-3 border-b border-white/10 pb-4">
+        <Settings className="text-primary-400" size={20} />
+        <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider">Properties</h2>
       </div>
 
-      <div className="p-6 flex flex-col gap-6 overflow-y-auto styled-scrollbar">
-        {['Heading', 'Text', 'Button'].includes(selectedNode.type) && (
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Content text</label>
-            <input 
-              type="text" 
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-sm"
+      {!selectedNode ? (
+        <div className="flex flex-col items-center justify-center text-slate-500 h-64 border border-dashed border-white/10 rounded-xl bg-white/5">
+          <Settings size={32} className="mb-4 opacity-50" />
+          <p className="text-sm">Select an element to edit</p>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-6">
+          <div className="bg-slate-800/50 border border-white/5 p-4 rounded-xl shadow-inner">
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-2">Element Type</h3>
+            <div className="text-lg font-medium text-slate-200">{selectedNode.type}</div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Text Content</label>
+            <input
+              type="text"
               value={selectedNode.props.text || ''}
-              onChange={(e) => handleChange('text', e.target.value)}
+              onChange={(e) => updateProperties(selectedNode.id, { text: e.target.value })}
+              className="bg-slate-900 border border-white/10 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:ring-2 focus:ring-primary-500 transition-shadow"
               placeholder="Enter text..."
             />
           </div>
-        )}
-
-        {selectedNode.type === 'Image' && (
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Image URL</label>
-            <input 
-              type="text" 
-              className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-sm"
-              value={selectedNode.props.src || ''}
-              onChange={(e) => handleChange('src', e.target.value)}
-              placeholder="https://..."
-            />
-          </div>
-        )}
-
-        <div className="flex flex-col gap-2">
-          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tailwind Classes</label>
-          <textarea 
-            className="w-full border border-slate-200 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500 transition-all shadow-sm font-mono resize-y min-h-[100px]"
-            value={selectedNode.props.className || ''}
-            onChange={(e) => handleChange('className', e.target.value)}
-            placeholder="e.g. bg-red-500 text-white p-4"
-          />
+          
         </div>
-      </div>
+      )}
     </div>
   );
 };
